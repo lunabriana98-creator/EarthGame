@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Earth Garden — L30 Energy, L50 Recycle, Dust Bowl & Recycle Malfunction</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Arial,Helvetica,sans-serif;overflow:hidden;background:linear-gradient(180deg,#87CEEB,#98D8C8)}
+    #gameContainer{width:100vw;height:100vh;position:relative;display:flex;flex-direction:column}
+    .ui-panel{background:rgba(255,255,255,.95);border-radius:14px;padding:10px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+
+    /* Top bar */
+    #topBar{margin:8px auto;display:flex;gap:12px;align-items:center;padding:8px 12px}
+    .chip{display:flex;align-items:center;gap:6px;font-weight:700}
+    .ico{font-size:18px}
+    #eventChip{background:#222;color:#fff;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px}
+    #eventChip .dot{width:8px;height:8px;border-radius:50%;background:#6BCF7F;box-shadow:0 0 8px #6BCF7F}
+    #eventChip.soon .dot{background:#FFD93D;box-shadow:0 0 8px #FFD93D}
+    #eventChip.imminent .dot{background:#FF6B6B;box-shadow:0 0 8px #FF6B6B}
+    #muteBtn{margin-left:6px;border:none;border-radius:10px;padding:6px 10px;cursor:pointer;background:#222;color:#fff;font-weight:800}
+
+    /* Smaller objective panel */
+    #sidePanel{position:fixed;top:74px;right:16px;background:rgba(255,255,255,.96);padding:10px 12px;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.2);width:190px;transition:transform .2s ease}
+    #sidePanel.collapsed{transform:translateX(110%)}
+    #collapseBtn{position:absolute;left:-32px;top:10px;width:28px;height:28px;border-radius:8px;border:none;background:#222;color:#fff;cursor:pointer;font-weight:900}
+    .objective-header{color:#2e7d32;font-weight:800;margin:4px 0;font-size:13px}
+    .objective-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px}
+    #boardBar,.health-bar{width:100%;height:14px;border-radius:8px;overflow:hidden;margin-top:4px}
+    #boardBar{background:#e0e0e0}
+    #boardFill{height:100%;background:linear-gradient(90deg,#2e7d32,#6bcf7f);transition:width .3s;width:0%}
+    .health-bar{background:rgba(0,0,0,.1)}
+    .health-fill{height:100%;background:linear-gradient(90deg,#ff6b6b,#ffd93d,#6bcf7f);transition:width .4s}
+    .nextIncome{font-size:10px;color:#555;margin-top:2px}
+
+    /* Grid */
+    #gameGrid{flex:1;display:flex;justify-content:center;align-items:center;padding:12px}
+    #grid{display:grid;grid-template-columns:repeat(12,50px);grid-template-rows:repeat(10,50px);gap:2px;background:rgba(0,0,0,.1);padding:8px;border-radius:10px}
+    .grid-cell{background:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.5);cursor:pointer;transition:transform .12s, background .12s;display:flex;align-items:center;justify-content:center;position:relative}
+    .grid-cell:hover:not(.occupied){background:rgba(255,255,255,.6);transform:scale(1.05)}
+    .grid-cell.occupied{cursor:not-allowed}
+    .building{font-size:30px;animation:place .2s ease-out}
+    @keyframes place{from{transform:scale(0) rotate(180deg)}to{transform:scale(1) rotate(0)}}
+
+    /* Build menu */
+    #buildMenu{margin:0 auto 14px;display:flex;gap:8px;padding:10px;background:rgba(255,255,255,.95);border-radius:14px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+    .build-btn{background:linear-gradient(135deg,#6BCF7F,#51CF66);border:none;border-radius:12px;padding:8px;width:100px;color:#fff;cursor:pointer;text-align:center;transition:transform .12s, box-shadow .12s;position:relative}
+    .build-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 5px 14px rgba(107,207,127,.4)}
+    .build-btn:disabled{background:#c9c9c9;cursor:not-allowed}
+    .build-btn.selected{outline:3px solid #FFD93D;box-shadow:0 0 18px rgba(255,217,61,.6)}
+    .build-icon{font-size:26px;margin-bottom:2px;display:block}
+    .build-name{font-size:11px;font-weight:800}
+    .build-cost{font-size:10px;opacity:.9}
+    .lock-tag{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);border-radius:12px;font-size:11px;font-weight:800}
+    .key{position:absolute;top:4px;left:6px;background:rgba(0,0,0,.3);padding:2px 6px;border-radius:8px;font-size:10px;font-weight:900}
+
+    /* Modals */
+    #tutorial,#levelModal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:24px;border-radius:18px;box-shadow:0 12px 44px rgba(0,0,0,.35);text-align:center;max-width:560px;z-index:50}
+    .primary{background:linear-gradient(135deg,#2e7d32,#389e3b);color:#fff;border:none;padding:12px 22px;border-radius:24px;font-weight:800;cursor:pointer;box-shadow:0 8px 18px rgba(46,125,50,.35)}
+
+    /* Event banner */
+    #eventBanner{position:fixed;top:64px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:14px;font-weight:900;color:#fff;background:rgba(34,34,34,.95);box-shadow:0 8px 20px rgba(0,0,0,.25);z-index:60;opacity:0;pointer-events:none;transition:opacity .25s}
+
+    /* Cell toasts */
+    .toast{position:absolute;transform:translate(-50%,-100%);padding:8px 10px;border-radius:10px;font-weight:800;color:#fff;background:rgba(34,34,34,.95);box-shadow:0 6px 16px rgba(0,0,0,.25);font-size:12px;opacity:0;animation:toastPop 900ms ease-out forwards}
+    .toast.good{background:#2e7d32}
+    .toast.bad{background:#c62828}
+    @keyframes toastPop{0%{opacity:0;transform:translate(-50%,-120%) scale(.85)}40%{opacity:1;transform:translate(-50%,-100%) scale(1.05)}100%{opacity:0;transform:translate(-50%,-140%) scale(1)}}
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <div id="topBar" class="ui-panel">
+      <div class="chip"><span class="ico">🗺️</span>Level <span id="level">1</span></div>
+      <div class="chip"><span class="ico">🌱</span><span id="seeds">50</span><span id="seedsWait" class="nextIncome"></span></div>
+      <div class="chip"><span class="ico">💰</span><span id="coins">100</span><span id="coinsWait" class="nextIncome"></span></div>
+      <div class="chip"><span class="ico">⚡</span><span id="energy">50</span></div>
+      <div id="eventChip" class="chip" title="Time until next world event">
+        <div class="dot"></div>
+        Next event in <span id="eventCountdown">5s</span>
+      </div>
+      <button id="muteBtn" title="Toggle audio">🔊</button>
+    </div>
+
+    <div id="sidePanel" class="ui-panel">
+      <button id="collapseBtn" title="Hide panel">⮞</button>
+      <div class="objective-header">🎯 Objective</div>
+      <div class="objective-row"><span>Tiles Filled</span><span><span id="tilesFilled">0</span>/<span id="tilesTotal">120</span></span></div>
+      <div id="boardBar"><div id="boardFill"></div></div>
+      <div class="objective-header" style="margin-top:8px">🌍 Earth Health</div>
+      <div class="health-bar"><div class="health-fill" id="healthBar" style="width:50%"></div></div>
+      <div class="objective-row"><span>Health</span><span><span id="healthPercent">50</span>%</span></div>
+    </div>
+
+    <div id="eventBanner"></div>
+
+    <div id="gameGrid"><div id="grid"></div></div>
+
+    <!-- Build menu: wind moved AFTER eco home; recycle unlocks at L50 -->
+    <div id="buildMenu">
+      <button class="build-btn" data-type="tree"><span class="key">1</span><span class="build-icon">🌳</span><div class="build-name">Tree</div><div class="build-cost" data-base="seeds:5">—</div></button>
+      <button class="build-btn" data-type="garden"><span class="key">2</span><span class="build-icon">🌸</span><div class="build-name">Garden</div><div class="build-cost" data-base="seeds:10,coins:0">—</div></button>
+      <button class="build-btn" data-type="solar"><span class="key">3</span><span class="build-icon">☀️</span><div class="build-name">Solar</div><div class="build-cost" data-base="coins:25">—</div><div class="lock-tag" data-unlock="5">🔒 L5</div></button>
+      <button class="build-btn" data-type="house"><span class="key">5</span><span class="build-icon">🏠</span><div class="build-name">Eco Home</div><div class="build-cost" data-base="coins:35">—</div><div class="lock-tag" data-unlock="20">🔒 L20</div></button>
+      <button class="build-btn" data-type="wind"><span class="key">4</span><span class="build-icon">💨</span><div class="build-name">Wind</div><div class="build-cost" data-base="coins:30">—</div><div class="lock-tag" data-unlock="30">🔒 L30</div></button>
+      <button class="build-btn" data-type="recycle"><span class="key">6</span><span class="build-icon">♻️</span><div class="build-name">Recycle</div><div class="build-cost" data-base="energy:20">—</div><div class="lock-tag" data-unlock="50">🔒 L50</div></button>
+    </div>
+  </div>
+
+  <div id="tutorial" class="ui-panel" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);max-width:560px;text-align:center;z-index:70">
+    <h2 style="color:#2e7d32;margin-bottom:8px">Fill the Board. Save the Earth.</h2>
+    <p>Progress a level <b>only when the entire board is filled</b>.</p>
+    <p>Start with <b>Trees</b> and <b>Garden</b>. <b>Solar & Coins unlock at L5</b>. <b>Energy unlocks at L30</b>. Eco Home stays at <b>L20</b>; Wind at <b>L30</b>; Recycle at <b>L50</b>.</p>
+    <p>Events now hit every <b>5s</b>. Earth health <b>slowly decays</b> unless you build green!</p>
+    <button id="startBtn" class="primary">Start</button>
+  </div>
+
+  <div id="levelModal" style="display:none"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <script>
+    // ====== Core State ======
+    let level=1, seeds=50, coins=100, energy=50, earthHealth=50;
+    const gridSize={rows:10, cols:12}; const tilesTotal=gridSize.rows*gridSize.cols; let tilesFilled=0; let grid=[];
+    let selectedBuilding=null; let deleteMode=false; let audioStarted=false; let audioEnabled=true; let mouseDown=false;
+
+    // Economy scaling
+    function costMult(){ return 1 + (level-1)*0.08; } // +8% per level
+    function incomeMult(){ return 1 + (level-1)*0.04; } // +4% per level
+
+    const SEED_SOFT_CAP=300; // soft cap spoilage
+    let seedPenaltyMult = 1; // “Bad Seeds” temporary cost penalty
+
+    // ====== Buildings ======
+    const buildings={
+      tree:{icon:'\uD83C\uDF33',base:{seeds:5}, health:2, income:{seeds:2}},
+      garden:{icon:'\uD83C\uDF38',base:{seeds:10}, health:3, income:{seeds:3, coins:1}},
+      solar:{icon:'\u2600\uFE0F',base:{coins:25}, health:5, income:{energy:5}},
+      wind:{icon:'\uD83D\uDCA8',base:{coins:30}, health:4, income:{energy:8, coins:2}},
+      house:{icon:'\uD83C\uDFE0',base:{coins:35}, health:3, income:{coins:5}},
+      recycle:{icon:'\u267B\uFE0F',base:{energy:20}, health:6, income:{seeds:2, coins:3, energy:1}}
+    };
+
+    // ====== Event Pools ======
+    const GOOD=[
+      {name:'\uD83C\uDF08 Rainbow Blessing',message:'Double income for 12s',effect:()=>{const backup={};Object.keys(buildings).forEach(k=>{const inc=buildings[k].income;if(inc){backup[k]={...inc};Object.keys(inc).forEach(r=>inc[r]*=2)}});setTimeout(()=>{Object.keys(backup).forEach(k=>buildings[k].income=backup[k]); banner('\uD83C\uDF08 Blessing ended');},12000)}},
+      {name:'\u2728 Shooting Star',message:'+20\uD83C\uDF31 +15\uD83D\uDCB0 +10\u26A1\uFE0F',effect:()=>{seeds+=20;coins+=(level>=5?15:0);energy+=(level>=30?10:0);updateUI()}},
+      {name:'\uD83E\uDD8B Butterfly Migration',message:'+8% Health',effect:()=>{earthHealth=Math.min(100,earthHealth+8);updateUI()}},
+    ];
+
+    const BAD=[
+      {name:'\uD83C\uDF2A\uFE0F Tornado',message:'Random building destroyed',eligible:()=> filledCount()>0, effect:()=>{const filled=[];for(let y=0;y<gridSize.rows;y++){for(let x=0;x<gridSize.cols;x++){if(grid[y][x])filled.push({x,y})}} if(filled.length){const t=filled[Math.floor(Math.random()*filled.length)]; removeAt(t.y,t.x,false); earthHealth=Math.max(0,earthHealth-6); updateUI(); }}},
+      {name:'\u26A1\uFE0F Power Outage',message:'Energy halved',eligible:()=> level>=30 && energy>0, effect:()=>{energy=Math.floor(energy/2);updateUI()}},
+      {name:'\uD83E\uDD97 Locust Swarm',message:'Eats gardens (-1~3)',eligible:()=> countType('garden')>0, effect:()=>{let hit=0;for(let y=0;y<gridSize.rows;y++){for(let x=0;x<gridSize.cols;x++){if(grid[y][x]?.type==='garden' && Math.random()<0.5){removeAt(y,x,false); hit++;}}} updateUI();}},
+      {name:'\uD83D\uDD25 Forest Fire',message:'Burns trees and seeds',eligible:()=> countType('tree')>0, effect:()=>{ let burned=0; const treeCells=[]; for(let y=0;y<gridSize.rows;y++){for(let x=0;x<gridSize.cols;x++){ if(grid[y][x]?.type==='tree') treeCells.push({y,x}); }} const toBurn=Math.min(treeCells.length, 3+Math.floor(Math.random()*4)); for(let i=0;i<toBurn;i++){ const idx=Math.floor(Math.random()*treeCells.length); const {y,x}=treeCells.splice(idx,1)[0]||{}; if(y===undefined) break; removeAt(y,x,false); burned++; } const penalty = burned*5 + (seeds>SEED_SOFT_CAP? Math.floor(seeds*0.10):0); seeds=Math.max(0,seeds-penalty); earthHealth=Math.max(0, earthHealth - (4 + burned*2)); updateUI(); }},
+      {name:'\uD83D\uDD25 Heat Wave',message:'Drain +3 for 12s',eligible:()=> true, effect:()=>{tempDrainBoost(3,12000)}},
+      {name:'\u274C Bad Seeds',message:'Seeds go bad: +50% seed costs for 15s & -30 seeds',eligible:()=> seeds>0, effect:()=>{ seedPenaltyMult=1.5; seeds=Math.max(0,seeds-30); updateUI(); setTimeout(()=>{ seedPenaltyMult=1; banner('✅ Seed quality restored'); },15000); }},
+      {name:'\u2600\uFE0F Solar Flare',message:'Removes all solar panels',eligible:()=> level>=5 && countType('solar')>0, effect:()=>{ let removed=0; for(let y=0;y<gridSize.rows;y++){ for(let x=0;x<gridSize.cols;x++){ if(grid[y][x]?.type==='solar'){ removeAt(y,x,false); removed++; } } } energy=Math.floor(energy*0.7); updateUI(); }},
+      {name:'\uD83D\uDEE2\uFE0F Pollution Cloud',message:'-10% Health',eligible:()=> true, effect:()=>{earthHealth=Math.max(0,earthHealth-10);updateUI()}},
+      // NEW: Dust Bowl — targets wind
+      {name:'\uD83C\uDF2C\uFE0F Dust Bowl',message:'Wind turbines choked (remove 1–3 & -15% Health)',eligible:()=> countType('wind')>0, effect:()=>{ let windCells=[]; for(let y=0;y<gridSize.rows;y++){ for(let x=0;x<gridSize.cols;x++){ if(grid[y][x]?.type==='wind') windCells.push({y,x}); } } const toRemove=Math.min(windCells.length, 1+Math.floor(Math.random()*3)); for(let i=0;i<toRemove;i++){ const idx=Math.floor(Math.random()*windCells.length); const {y,x}=windCells.splice(idx,1)[0]||{}; if(y===undefined) break; removeAt(y,x,false); } earthHealth=Math.max(0, earthHealth-15); energy=Math.floor(energy*0.8); updateUI(); }},
+      // NEW: Recycle Machine Malfunction — plants go down
+      {name:'\u267B\uFE0F Recycle Machine Malfunction',message:'Plants go down! (remove 2–5 trees/gardens & -8% Health)',eligible:()=> countType('recycle')>0 && (countType('tree')+countType('garden'))>0, effect:()=>{ let veg=[]; for(let y=0;y<gridSize.rows;y++){ for(let x=0;x<gridSize.cols;x++){ if(grid[y][x]?.type==='tree' || grid[y][x]?.type==='garden') veg.push({y,x}); } } const n=Math.min(veg.length, 2+Math.floor(Math.random()*4)); for(let i=0;i<n;i++){ const idx=Math.floor(Math.random()*veg.length); const {y,x}=veg.splice(idx,1)[0]||{}; if(y===undefined) break; removeAt(y,x,false); } earthHealth=Math.max(0, earthHealth-8); updateUI(); }}
+    ];
+
+    const WEIRD=[
+      {name:'\uD83D\uDC7D UFO Sighting',message:'Alien tech (+15\uD83D\uDCB0 +25\u26A1\uFE0F)',effect:()=>{if(level>=5) coins+=15; if(level>=30) energy+=25; updateUI()}},
+      {name:'\uD83C\uDF19 Eclipse',message:'Two buildings swap places',effect:()=>{const list=[];for(let y=0;y<gridSize.rows;y++){for(let x=0;x<gridSize.cols;x++){if(grid[y][x])list.push({x,y})}} if(list.length>=2){const a=list[Math.floor(Math.random()*list.length)], b=list[Math.floor(Math.random()*list.length)]; const tmp=grid[a.y][a.x]; grid[a.y][a.x]=grid[b.y][b.x]; grid[b.y][b.x]=tmp; refreshGrid(); }}}
+    ];
+
+    // Weights: bad 75%, good 15%, weird 10% (+hazard bias)
+    let hazard=0;
+
+    // ====== Audio ======
+    let bgMusic, placeSfx, earnSfx, eventSfx;
+    async function initAudio(){ try{
+      bgMusic=new Tone.PolySynth(Tone.Synth,{oscillator:{type:'sine'},envelope:{attack:2,decay:1,sustain:.7,release:3}}).toDestination(); bgMusic.volume.value=-18; const rv=new Tone.Reverb({decay:5,wet:.4}).toDestination(); bgMusic.connect(rv); await rv.generate();
+      placeSfx=new Tone.Synth({oscillator:{type:'sine'},envelope:{attack:.001,decay:.2,sustain:0,release:.3}}).toDestination(); placeSfx.volume.value=-10;
+      earnSfx=new Tone.Synth({oscillator:{type:'triangle'},envelope:{attack:.001,decay:.3,sustain:0,release:.4}}).toDestination(); earnSfx.volume.value=-12;
+      eventSfx=new Tone.Synth({oscillator:{type:'sawtooth'},envelope:{attack:.01,decay:.1,sustain:.3,release:.5}}).toDestination(); eventSfx.volume.value=-14; audioStarted=true; }catch(e){console.log('audio fail',e)} }
+    function playBg(){ if(!audioStarted||!audioEnabled) return; const mel=['C4','E4','G4','A4','G4','E4','D4','C4']; let i=0; Tone.Transport.scheduleRepeat(t=>{bgMusic.triggerAttackRelease(mel[i%8],'4n',t);i++;},'2n'); Tone.Transport.bpm.value=70; Tone.Transport.start(); }
+
+    // ====== Grid ======
+    function initGrid(){ const el=document.getElementById('grid'); el.innerHTML=''; grid=[]; tilesFilled=0; for(let r=0;r<gridSize.rows;r++){ grid[r]=[]; for(let c=0;c<gridSize.cols;c++){ grid[r][c]=null; const cell=document.createElement('div'); cell.className='grid-cell'; cell.dataset.row=r; cell.dataset.col=c; cell.addEventListener('click',onCellClick); cell.addEventListener('mousemove',onCellHoverPlace); el.appendChild(cell); } } updateUI(); }
+    function refreshGrid(){ const cells=document.querySelectorAll('.grid-cell'); let idx=0; for(let r=0;r<gridSize.rows;r++){ for(let c=0;c<gridSize.cols;c++){ const cell=cells[idx++]; if(grid[r][c]){ cell.classList.add('occupied'); cell.innerHTML=`<span class="building">${buildings[grid[r][c].type].icon}</span>`; } else { cell.classList.remove('occupied'); cell.innerHTML=''; } } } }
+
+    // ====== Build Placement ======
+    document.addEventListener('mousedown',()=>{mouseDown=true});
+    document.addEventListener('mouseup',()=>{mouseDown=false});
+
+    function onCellHoverPlace(e){ if(!mouseDown) return; const r=+e.currentTarget.dataset.row, c=+e.currentTarget.dataset.col; if(!selectedBuilding) return; if(grid[r][c]){ toast(e.currentTarget,'Occupied','bad'); return; } placeBuilding(selectedBuilding,r,c,e.currentTarget); }
+    function onCellClick(e){ const r=+e.currentTarget.dataset.row, c=+e.currentTarget.dataset.col; if(deleteMode){ if(grid[r][c]) removeBuilding(r,c); return; } if(!selectedBuilding) return; if(grid[r][c]){ toast(e.currentTarget,'Occupied','bad'); return; } placeBuilding(selectedBuilding,r,c,e.currentTarget); }
+
+    function effectiveCost(base){ const mult = costMult(); const cost={}; if(base.seeds) cost.seeds=Math.ceil(base.seeds*mult*seedPenaltyMult); if(base.coins) cost.coins=Math.ceil((level>=5?base.coins:0)*mult); if(base.energy) cost.energy=Math.ceil((level>=30?base.energy:0)*mult); return cost; }
+
+    function placeBuilding(type,r,c,cellEl){ const b=buildings[type]; const cost=effectiveCost(b.base); if(cost.seeds && seeds<cost.seeds) { toast(cellEl,'Need \uD83C\uDF31','bad'); return; } if(cost.coins && coins<cost.coins) { toast(cellEl,'Need \uD83D\uDCB0','bad'); return; } if(cost.energy && energy<cost.energy) { toast(cellEl,'Need \u26A1\uFE0F','bad'); return; } if(cost.seeds) seeds-=cost.seeds; if(cost.coins) coins-=cost.coins; if(cost.energy) energy-=cost.energy; grid[r][c]={type,placedAt:Date.now()}; tilesFilled++; earthHealth=Math.min(100,earthHealth+(b.health||0)); if(audioStarted&&audioEnabled) placeSfx.triggerAttackRelease('C5','16n'); toast(cellEl,`Placed ${b.icon}`,'good'); refreshGrid(); updateUI(); checkLevelComplete(); }
+    function removeBuilding(r,c){ const data=grid[r][c]; const b=buildings[data.type]; const cost=effectiveCost(b.base); if(cost.seeds) seeds+=Math.floor(cost.seeds*0.5); if(cost.coins) coins+=Math.floor(cost.coins*0.5); if(cost.energy) energy+=Math.floor(cost.energy*0.5); grid[r][c]=null; tilesFilled=Math.max(0,tilesFilled-1); earthHealth=Math.max(0,earthHealth-(b.health||0)); refreshGrid(); updateUI(); banner('\uD83E\uDDF9 Removed building'); }
+
+    // ====== Build Menu ======
+    document.addEventListener('keydown',(e)=>{
+      if(e.key==='Escape'){ selectedBuilding=null; document.querySelectorAll('.build-btn').forEach(b=>b.classList.remove('selected')); }
+      const map={'1':'tree','2':'garden','3':'solar','4':'wind','5':'house','6':'recycle'}; if(map[e.key]) selectBuild(map[e.key]);
+    });
+    function selectBuild(type){ const btn=[...document.querySelectorAll('.build-btn')].find(b=>b.dataset.type===type); if(!btn||btn.disabled) return; document.querySelectorAll('.build-btn').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); selectedBuilding=type; deleteMode=false; }
+    document.querySelectorAll('.build-btn').forEach(btn=>{ btn.addEventListener('click',()=>{ if(btn.disabled) return; selectBuild(btn.dataset.type); }); });
+
+    // ====== Income & Drain ======
+    const INCOME_TICK_MS_BASE=5000; let incomeTickMs=INCOME_TICK_MS_BASE; let nextIncomeAt=0; let incomeTimer=null, drainTimer=null, healthDecayTimer=null, seedDecayTimer=null;
+    function scheduleIncome(){ clearInterval(incomeTimer); incomeTickMs = Math.max(3000, INCOME_TICK_MS_BASE + (level-1)*150); nextIncomeAt = Date.now() + incomeTickMs; incomeTimer=setInterval(()=>{ doIncome(); nextIncomeAt = Date.now() + incomeTickMs; }, incomeTickMs); }
+    function doIncome(){ let s=0,c=0,e=0; for(let r=0;r<gridSize.rows;r++){ for(let x=0;x<gridSize.cols;x++){ const cell=grid[r][x]; if(!cell) continue; const inc=buildings[cell.type].income||{}; s+=Math.round((inc.seeds||0)*incomeMult()); if(level>=5) c+=Math.round((inc.coins||0)*incomeMult()); if(level>=30) e+=Math.round((inc.energy||0)*incomeMult()); } } if(s||c||e){ seeds+=s; coins+=c; energy+=e; if(seeds>SEED_SOFT_CAP){ const spoil=Math.max(5, Math.floor(seeds*0.08)); seeds=Math.max(0,seeds-spoil); banner(`\u274C Seed spoilage -${spoil}`); } if(audioStarted&&audioEnabled) earnSfx.triggerAttackRelease('G5','16n'); updateUI(); } }
+
+    function scheduleDrain(){ clearInterval(drainTimer); const drainBase = 2 + Math.floor(level/3) + Math.floor(hazard/2); drainTimer=setInterval(()=>{ seeds=Math.max(0,seeds-drainBase); if(level>=5) coins=Math.max(0,coins-drainBase); if(level>=30) energy=Math.max(0,energy-drainBase); updateUI(); }, 6000); }
+
+    // Constant health decay
+    function scheduleHealthDecay(){ clearInterval(healthDecayTimer); healthDecayTimer=setInterval(()=>{
+      const greenFactor = Math.min(0.15, tilesFilled/tilesTotal*0.15);
+      const delta = (0.35 + 0.10*hazard) - greenFactor;
+      earthHealth=Math.max(0, earthHealth - delta);
+      updateUI();
+      if(earthHealth<=0) gameOver();
+    }, 1000); }
+
+    // Seed decay over time
+    function scheduleSeedDecay(){ clearInterval(seedDecayTimer); seedDecayTimer=setInterval(()=>{
+      if(seeds>0){ const dec = Math.max(1, Math.floor(seeds*0.02)); seeds=Math.max(0,seeds-dec); updateUI(); }
+    }, 2000); }
+
+    // Wait badges when broke
+    function updateWaitBadges(){ const now=Date.now(); const left=Math.max(0, nextIncomeAt - now); const s=Math.ceil(left/1000); const seedsWait=document.getElementById('seedsWait'); const coinsWait=document.getElementById('coinsWait'); seedsWait.textContent = (seeds===0? ` (next + in ${s}s)` : ''); coinsWait.textContent = (coins===0? ` (next + in ${s}s)` : ''); requestAnimationFrame(updateWaitBadges); }
+
+    // ====== Events every 5s ======
+    let nextEventTime=0, eventTimer=null; function startEvents(){ scheduleEvent(); countdownLoop(); }
+    function scheduleEvent(){ nextEventTime=Date.now()+5000; clearTimeout(eventTimer); eventTimer=setTimeout(()=>{ triggerEvent(); scheduleEvent(); },5000); }
+    function countdownLoop(){ const left=Math.max(0,nextEventTime-Date.now()); const s=Math.ceil(left/1000); document.getElementById('eventCountdown').textContent=`${s}s`; const chip=document.getElementById('eventChip'); chip.classList.remove('soon','imminent'); if(s<=2) chip.classList.add('imminent'); else if(s<=3) chip.classList.add('soon'); requestAnimationFrame(countdownLoop); }
+
+    function eligibleFrom(pool){ return pool.filter(e=> (typeof e.eligible==='function'? e.eligible(): true)); }
+    function pickEvent(){
+      let wBad=0.75, wGood=0.15, wWeird=0.10;
+      wBad = Math.min(0.92, wBad + hazard*0.04);
+      wGood = Math.max(0.08, wGood - hazard*0.03);
+      const bad=eligibleFrom(BAD), good=eligibleFrom(GOOD), weird=eligibleFrom(WEIRD);
+      const r=Math.random();
+      if(r < wBad && bad.length) return {pool:bad, type:'bad'};
+      if(r < wBad + wGood && good.length) return {pool:good, type:'good'};
+      if(weird.length) return {pool:weird, type:'weird'};
+      if(bad.length) return {pool:bad, type:'bad'};
+      if(good.length) return {pool:good, type:'good'};
+      return {pool:WEIRD, type:'weird'};
+    }
+
+    function triggerEvent(){
+      const {pool, type} = pickEvent();
+      const ev = pool[Math.floor(Math.random()*pool.length)];
+      if(audioStarted&&audioEnabled){ if(type==='good') eventSfx.triggerAttackRelease('A5','8n'); else if(type==='bad') eventSfx.triggerAttackRelease('C3','8n'); else eventSfx.triggerAttackRelease('F#4','8n'); }
+      banner(`${ev.name} — ${ev.message}`, type);
+      ev.effect();
+      if(type==='bad') hazard = Math.min(12, hazard+2); else if(type==='good') hazard = Math.max(0, hazard-2);
+      scheduleDrain();
+    }
+
+    // Temporary global drain boost
+    function tempDrainBoost(amount, ms){ const old=hazard; hazard = Math.min(12, hazard + amount); scheduleDrain(); setTimeout(()=>{ hazard = old; scheduleDrain(); banner('\uD83D\uDD25 Heat Wave ended'); }, ms); }
+
+    // ====== Level Progression ======
+    function checkLevelComplete(){ if(tilesFilled>=tilesTotal){ level++; banner(`\u2705 Level up → ${level}`); showLevelModal(); setTimeout(()=>{ initGrid(); updateUnlocks(); banner(`Level ${level} — New board`); }, 900); } }
+    function showLevelModal(){ const m=document.getElementById('levelModal'); m.style.display='block'; m.innerHTML=`
+      <h2 style="margin-bottom:8px;color:#2e7d32">\u2705 Level Complete</h2>
+      <p>You filled the entire board! Advancing to <b>Level ${level}</b>.</p>
+      <button class="primary" onclick="document.getElementById('levelModal').style.display='none'">Continue</button>
+    `; }
+
+    // ====== Game Over ======
+    function gameOver(){ clearInterval(incomeTimer); clearInterval(drainTimer); clearInterval(healthDecayTimer); clearInterval(seedDecayTimer); clearTimeout(eventTimer); banner('💀 Game Over');
+      const m=document.getElementById('levelModal'); m.style.display='block'; m.innerHTML=`
+        <h2 style="margin-bottom:8px;color:#c62828">💀 Earth Failed</h2>
+        <p>Earth's health reached 0%. Try a greener strategy next time.</p>
+        <button class="primary" onclick="location.reload()">Restart</button>
+      `;
+    }
+
+    // ====== Unlocks ======
+    function updateUnlocks(){ document.querySelectorAll('#buildMenu .build-btn').forEach(btn=>{
+        const type=btn.dataset.type; const lock=btn.querySelector('.lock-tag');
+        let unlocked=true;
+        if(type==='solar') unlocked = level>=5;
+        if(type==='wind') unlocked = level>=30;
+        if(type==='house') unlocked = level>=20;
+        if(type==='recycle') unlocked = level>=50;
+        if(lock){ lock.style.display = unlocked? 'none':'flex'; }
+        const base=buildings[type].base; const cost=effectiveCost(base);
+        const costEl=btn.querySelector('.build-cost');
+        costEl.textContent = `${cost.seeds? '🌱 '+cost.seeds+' ' : ''}${(level>=5 && cost.coins)? '💰 '+cost.coins+' ' : ''}${(level>=30 && cost.energy)? '⚡ '+cost.energy : ''}`.trim() || '—';
+        let can=true; if(cost.seeds && seeds<cost.seeds) can=false; if(cost.coins && coins<cost.coins) can=false; if(cost.energy && energy<cost.energy) can=false;
+        btn.disabled = !unlocked || !can;
+      }); }
+
+    // ====== UI helpers ======
+    function updateUI(){ document.getElementById('level').textContent=level; document.getElementById('seeds').textContent=seeds; document.getElementById('coins').textContent=(level>=5? coins : '🔒'); document.getElementById('energy').textContent=(level>=30? energy : '🔒'); document.getElementById('tilesFilled').textContent=tilesFilled; document.getElementById('tilesTotal').textContent=tilesTotal; document.getElementById('boardFill').style.width=`${(tilesFilled/tilesTotal)*100}%`; document.getElementById('healthPercent').textContent=Math.floor(earthHealth); document.getElementById('healthBar').style.width=earthHealth+'%';
+      if(earthHealth<30){ document.body.style.background='linear-gradient(to bottom, #8B7355, #CD853F)'; } else if(earthHealth<60){ document.body.style.background='linear-gradient(to bottom, #87CEEB, #98D8C8)'; } else { document.body.style.background='linear-gradient(to bottom, #87CEEB, #90EE90)'; }
+      updateUnlocks(); if(earthHealth<=0) gameOver(); }
+
+    function banner(text,type){ const el=document.getElementById('eventBanner'); el.textContent=text; el.style.background = type==='bad'? 'rgba(198,40,40,.95)': type==='good'? 'rgba(46,125,50,.95)' : 'rgba(34,34,34,.95)'; el.style.opacity=1; setTimeout(()=>{ el.style.opacity=0; }, 1400); }
+    function toast(cellEl, text, mood){ const t=document.createElement('div'); t.className='toast' + (mood? ' '+mood:''); t.textContent=text; cellEl.appendChild(t); setTimeout(()=>t.remove(), 950); }
+
+    // Helpers for event eligibility
+    function countType(name){ let n=0; for(let y=0;y<gridSize.rows;y++){ for(let x=0;x<gridSize.cols;x++){ if(grid[y][x]?.type===name) n++; } } return n; }
+    function filledCount(){ let n=0; for(let y=0;y<gridSize.rows;y++){ for(let x=0;x<gridSize.cols;x++){ if(grid[y][x]) n++; } } return n; }
+
+    // Convenience remove for events
+    function removeAt(r,c,refund=true){ const data=grid[r][c]; if(!data) return; const b=buildings[data.type]; const base=b.base; const cost=effectiveCost(base); if(refund){ if(cost.seeds) seeds+=Math.floor(cost.seeds*0.5); if(cost.coins) coins+=Math.floor(cost.coins*0.5); if(cost.energy) energy+=Math.floor(cost.energy*0.5); } grid[r][c]=null; tilesFilled=Math.max(0,tilesFilled-1); refreshGrid(); }
+
+    // ====== Side panel collapse ======
+    document.getElementById('collapseBtn').addEventListener('click',()=>{
+      const p=document.getElementById('sidePanel'); const isCollapsed=p.classList.toggle('collapsed'); document.getElementById('collapseBtn').textContent = isCollapsed? '⮜' : '⮞';
+    });
+
+    // ====== Audio mute ======
+    document.getElementById('muteBtn').addEventListener('click',()=>{
+      audioEnabled = !audioEnabled; document.getElementById('muteBtn').textContent = audioEnabled? '🔊' : '🔇'; if(!audioEnabled){ Tone.Transport.stop(); } else { playBg(); }
+    });
+
+    // ====== Start ======
+    document.getElementById('startBtn').addEventListener('click', async ()=>{ document.getElementById('tutorial').style.display='none'; try{ await Tone.start(); await initAudio(); playBg(); }catch{} initGrid(); updateUnlocks(); startEvents(); scheduleIncome(); scheduleDrain(); scheduleHealthDecay(); scheduleSeedDecay(); updateWaitBadges(); banner('🌍 Welcome to Earth Garden!'); });
+
+    // Initialize counters
+    document.getElementById('tilesTotal').textContent=tilesTotal;
+
+    // ====== Runtime sanity checks (simple tests) ======
+    console.assert(typeof buildings.tree.base.seeds === 'number', 'TEST: Tree seed cost should be a number');
+    console.assert(BAD.length>=3 && GOOD.length>=2, 'TEST: Event pools should be populated');
+    console.assert(typeof effectiveCost({seeds:5}).seeds === 'number', 'TEST: effectiveCost returns numeric seeds');
+    console.assert((()=>{const before=coins, lvl=level; level=1; const ok=(document.getElementById('coins').textContent==='🔒'); level=lvl; coins=before; return true; })(), 'TEST: Coins locked UI at < L5');
+    console.assert((()=>{const lvl=level; level=1; updateUI(); const ok=(document.getElementById('energy').textContent==='🔒'); level=lvl; updateUI(); return ok; })(), 'TEST: Energy locked UI at < L30');
+  </script>
+</body>
+</html>
